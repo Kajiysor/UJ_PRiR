@@ -8,14 +8,14 @@
 class LifeParallelImplementation : public Life
 {
 private:
-    MPI_Comm comm_; // MPI communicator
-    int rank_;      // Rank of the current process
-    int procSize_;  // Total number of processes
-    int firstRow_;  // Index of the first row in the current process
-    int lastRow_;   // Index of the last row in the current process
-    bool afterLastStep_;
+    MPI_Comm comm_;      // MPI communicator
+    int rank_;           // rank of the current process
+    int procSize_;       // total number of processes
+    int firstRow_;       // index of the first row in the current process
+    int lastRow_;        // index of the last row in the current process
+    bool afterLastStep_; // true if the last step has been performed
 
-    void exchangeBorders();
+    void exchangeBorderRowsInfo();
 
 public:
     LifeParallelImplementation();
