@@ -66,22 +66,20 @@ void LifeParallelImplementation::oneStep()
 
 int LifeParallelImplementation::numberOfLivingCells()
 {
-    if (afterLastStep_)
+    if (!afterLastStep_)
     {
-        return sumTable(cells);
+        afterLastStep();
     }
-    afterLastStep();
-    return -1;
+    return sumTable(cells);
 }
 
 double LifeParallelImplementation::averagePollution()
 {
-    if (afterLastStep_)
+    if (!afterLastStep_)
     {
-        return (double)sumTable(pollution) / size_1_squared / rules->getMaxPollution();
+        afterLastStep();
     }
-    afterLastStep();
-    return -1;
+    return (double)sumTable(pollution) / size_1_squared / rules->getMaxPollution();
 }
 
 void LifeParallelImplementation::beforeFirstStep()
@@ -153,6 +151,7 @@ void LifeParallelImplementation::afterLastStep()
                 MPI_Recv(pollution[i], size, MPI_INT, procNum, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
         }
+        afterLastStep_ = true;
     }
     else
     {
