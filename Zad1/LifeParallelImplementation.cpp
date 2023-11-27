@@ -42,7 +42,10 @@ void LifeParallelImplementation::exchangeBorderRowsInfo()
 
 void LifeParallelImplementation::realStep()
 {
-    exchangeBorderRowsInfo(); // exchange borders before updating the cells
+    if (procSize_ > 1)
+    {
+        exchangeBorderRowsInfo(); // exchange borders before updating the cells
+    }
 
     int currentState, currentPollution;
     for (int row = firstRow_; row < lastRow_; row++)
@@ -84,84 +87,88 @@ double LifeParallelImplementation::averagePollution()
 
 void LifeParallelImplementation::beforeFirstStep()
 {
-    if (rank_ == 0)
+    if (procSize_ > 1)
     {
-        // split the board into equal parts for each process
-        int rowsPerProcess = size / procSize_;
-        int rowsLeft = size % procSize_;
-        firstRow_ = 0;
-        lastRow_ = 0;
-        for (int procNum = 0; procNum < procSize_; procNum++)
+        if (rank_ == 0)
         {
-            firstRow_ = lastRow_;
-            lastRow_ = firstRow_ + rowsPerProcess;
-            if (procNum == procSize_ - 1)
+            // split the board into equal parts for each process
+            int rowsPerProcess = size / procSize_;
+            int rowsLeft = size % procSize_;
+            firstRow_ = 0;
+            lastRow_ = 0;
+            for (int procNum = 0; procNum < procSize_; procNum++)
             {
-                lastRow_ += rowsLeft - 1;
+                firstRow_ = lastRow_;
+                lastRow_ = firstRow_ + rowsPerProcess;
+                if (procNum == procSize_ - 1)
+                {
+                    lastRow_ += rowsLeft - 1;
+                }
+                if (procNum == 0)
+                {
+                    continue;
+                }
+                // send the information to all other processes
+                MPI_Send(&firstRow_, 1, MPI_INT, procNum, 0, MPI_COMM_WORLD);
+                MPI_Send(&lastRow_, 1, MPI_INT, procNum, 0, MPI_COMM_WORLD);
+                for (int j = firstRow_; j < lastRow_; j++)
+                {
+                    MPI_Send(cells[j], size, MPI_INT, procNum, 0, MPI_COMM_WORLD);
+                    MPI_Send(pollution[j], size, MPI_INT, procNum, 0, MPI_COMM_WORLD);
+                }
             }
-            if (procNum == 0)
+            firstRow_ = 1;
+            lastRow_ = rowsPerProcess;
+        }
+        else
+        {
+            // receive all the information from the root process
+            MPI_Recv(&firstRow_, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&lastRow_, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            for (int i = firstRow_; i < lastRow_; i++)
             {
-                continue;
-            }
-            std::cout << "Root process sending to process " << procNum << "\n";
-            std::cout << "First row: " << firstRow_ << "\n";
-            std::cout << "Last row: " << lastRow_ << "\n";
-            // send the information to all other processes
-            MPI_Send(&firstRow_, 1, MPI_INT, procNum, 0, MPI_COMM_WORLD);
-            MPI_Send(&lastRow_, 1, MPI_INT, procNum, 0, MPI_COMM_WORLD);
-            for (int j = firstRow_; j < lastRow_; j++)
-            {
-                MPI_Send(cells[j], size, MPI_INT, procNum, 0, MPI_COMM_WORLD);
-                MPI_Send(pollution[j], size, MPI_INT, procNum, 0, MPI_COMM_WORLD);
+                MPI_Recv(cells[i], size, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(pollution[i], size, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
         }
-        firstRow_ = 1;
-        lastRow_ = rowsPerProcess;
-        std::cout << "Root process rows: " << firstRow_ << " - " << lastRow_ << "\n";
     }
     else
     {
-        // receive all the information from the root process
-        MPI_Recv(&firstRow_, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&lastRow_, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        for (int i = firstRow_; i < lastRow_; i++)
-        {
-            MPI_Recv(cells[i], size, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(pollution[i], size, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
-        std::cout << "Process " << rank_ << " receiving from root process\n";
-        std::cout << "First row: " << firstRow_ << "\n";
-        std::cout << "Last row: " << lastRow_ << "\n";
+        firstRow_ = 1;
+        lastRow_ = size_1;
     }
 }
 
 void LifeParallelImplementation::afterLastStep()
 {
-    // send the table from all processes to the root process
-    if (rank_ == 0)
-    {
-        // receive the table from all other processes
-        for (int procNum = 1; procNum < procSize_; procNum++)
-        {
-            MPI_Recv(&firstRow_, 1, MPI_INT, procNum, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(&lastRow_, 1, MPI_INT, procNum, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            for (int i = firstRow_; i < lastRow_; i++)
-            {
-                MPI_Recv(cells[i], size, MPI_INT, procNum, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(pollution[i], size, MPI_INT, procNum, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            }
-        }
-        afterLastStep_ = true;
-    }
-    else
+    if (procSize_ > 1)
     {
         // send the table from all processes to the root process
-        MPI_Send(&firstRow_, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-        MPI_Send(&lastRow_, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-        for (int i = firstRow_; i < lastRow_; i++)
+        if (rank_ == 0)
         {
-            MPI_Send(cells[i], size, MPI_INT, 0, 0, MPI_COMM_WORLD);
-            MPI_Send(pollution[i], size, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            // receive the table from all other processes
+            for (int procNum = 1; procNum < procSize_; procNum++)
+            {
+                MPI_Recv(&firstRow_, 1, MPI_INT, procNum, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&lastRow_, 1, MPI_INT, procNum, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                for (int i = firstRow_; i < lastRow_; i++)
+                {
+                    MPI_Recv(cells[i], size, MPI_INT, procNum, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(pollution[i], size, MPI_INT, procNum, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                }
+            }
+            afterLastStep_ = true;
+        }
+        else
+        {
+            // send the table from all processes to the root process
+            MPI_Send(&firstRow_, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            MPI_Send(&lastRow_, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            for (int i = firstRow_; i < lastRow_; i++)
+            {
+                MPI_Send(cells[i], size, MPI_INT, 0, 0, MPI_COMM_WORLD);
+                MPI_Send(pollution[i], size, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            }
         }
     }
 }
