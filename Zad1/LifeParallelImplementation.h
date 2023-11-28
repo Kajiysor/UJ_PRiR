@@ -3,7 +3,6 @@
 #define LIFEPARALLELIMPLEMENTATION_H_
 
 #include "Life.h"
-#include <mpi.h>
 
 class LifeParallelImplementation : public Life
 {

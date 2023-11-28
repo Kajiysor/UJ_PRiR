@@ -1,6 +1,6 @@
 // LifeParallelImplementation.cpp
 #include "LifeParallelImplementation.h"
-#include <iostream>
+#include <mpi.h>
 
 LifeParallelImplementation::LifeParallelImplementation()
 {
