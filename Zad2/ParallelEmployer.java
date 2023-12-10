@@ -15,31 +15,29 @@ public class ParallelEmployer implements Employer {
 
         for (Direction direction : allowedDirections) {
             Location location = direction.step(startLocation);
-            int orderID = orderInterface.order(location);
-            orderIDLocationMap.put(orderID, location);
+            orderIDLocationMap.put(orderInterface.order(location), location);
             exploredLocations.add(location);
         }
-        iterateResults();
+        try {
+            iterateResults();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         return finalLocation;
     }
 
-    synchronized private void iterateResults() {
+    synchronized private void iterateResults() throws InterruptedException {
         if (results.isEmpty()) {
-            try {
-                this.wait();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            this.wait();
         }
 
         for (Result result : results) {
             if (result.type() == LocationType.EXIT) {
                 finalLocation = orderIDLocationMap.get(result.orderID());
                 return;
-            } else if (result.type() == LocationType.PASSAGE) {
-                Location locFromMap = orderIDLocationMap.get(result.orderID());
+            } else {
                 for (Direction direction : result.allowedDirections()) {
-                    Location location = direction.step(locFromMap);
+                    Location location = direction.step(orderIDLocationMap.get(result.orderID()));
                     if (!exploredLocations.contains(location)) {
                         int orderID = orderInterface.order(location);
                         orderIDLocationMap.put(orderID, location);
