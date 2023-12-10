@@ -6,47 +6,46 @@ import java.util.List;
 public class ParallelEmployer implements Employer {
     @Override
     public void setOrderInterface(OrderInterface order) {
-        this.orderInterface = order;
+        this.orderInterface_ = order;
     }
 
     @Override
     public Location findExit(Location startLocation, List<Direction> allowedDirections) {
-        orderInterface.setResultListener(new ResultListenerImpl());
+        orderInterface_.setResultListener(new ResultListenerImpl());
 
         for (Direction direction : allowedDirections) {
             Location location = direction.step(startLocation);
-            orderIDLocationMap.put(orderInterface.order(location), location);
-            exploredLocations.add(location);
+            orderIDLocationMap_.put(orderInterface_.order(location), location);
+            exploredLocations_.add(location);
         }
         try {
             iterateResults();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        return finalLocation;
+        return finalLocation_;
     }
 
     synchronized private void iterateResults() throws InterruptedException {
-        if (results.isEmpty()) {
+        if (results_.isEmpty()) {
             this.wait();
         }
 
-        for (Result result : results) {
+        for (Result result : results_) {
             if (result.type() == LocationType.EXIT) {
-                finalLocation = orderIDLocationMap.get(result.orderID());
+                finalLocation_ = orderIDLocationMap_.get(result.orderID());
                 return;
             } else {
                 for (Direction direction : result.allowedDirections()) {
-                    Location location = direction.step(orderIDLocationMap.get(result.orderID()));
-                    if (!exploredLocations.contains(location)) {
-                        int orderID = orderInterface.order(location);
-                        orderIDLocationMap.put(orderID, location);
+                    Location location = direction.step(orderIDLocationMap_.get(result.orderID()));
+                    if (!exploredLocations_.contains(location)) {
+                        orderIDLocationMap_.put(orderInterface_.order(location), location);
                     }
-                    exploredLocations.add(location);
+                    exploredLocations_.add(location);
                 }
             }
         }
-        results.clear();
+        results_.clear();
         iterateResults();
     }
 
@@ -54,16 +53,16 @@ public class ParallelEmployer implements Employer {
         @Override
         public void result(Result result) {
             synchronized (ParallelEmployer.this) {
-                results.add(result);
+                results_.add(result);
                 ParallelEmployer.this.notify();
             }
         }
     }
 
-    private OrderInterface orderInterface;
-    private HashSet<Location> exploredLocations = new HashSet<>();
-    private Location finalLocation = null;
-    private ArrayList<Result> results = new ArrayList<>();
-    private HashMap<Integer, Location> orderIDLocationMap = new HashMap<>();
+    private OrderInterface orderInterface_;
+    private HashSet<Location> exploredLocations_ = new HashSet<>();
+    private Location finalLocation_ = null;
+    private ArrayList<Result> results_ = new ArrayList<>();
+    private HashMap<Integer, Location> orderIDLocationMap_ = new HashMap<>();
 
 }
