@@ -1,0 +1,4 @@
+tester/*
+*.out
+**.Identifier
+**.class
