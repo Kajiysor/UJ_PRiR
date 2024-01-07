@@ -2,3 +2,4 @@ tester/*
 *.out
 **.Identifier
 **.class
+**bin
