@@ -148,7 +148,7 @@ void Simulation::pairDistribution(double *histogram, int size, double coef)
     double distance;
     int idx;
 
-#pragma omp parallel for private(dx, dy, distance, idx)
+#pragma omp parallel for private(dx, dy, distance, idx) schedule(dynamic)
     for (int idx1 = 0; idx1 < particles; idx1++)
     {
         for (int idx2 = 0; idx2 < idx1; idx2++)
@@ -166,7 +166,7 @@ void Simulation::pairDistribution(double *histogram, int size, double coef)
         }
     }
 
-#pragma omp parallel for
+#pragma omp parallel for private(distance)
     for (int i = 0; i < size; i++)
     {
         distance = (i + 0.5) * coef;
